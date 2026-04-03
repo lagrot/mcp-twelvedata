@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-# slack-mcp
-# mcp-twelvedata
-=======
 # TwelveData MCP Server
 
 A Model Context Protocol (MCP) server for financial analysis using the TwelveData API.
@@ -14,7 +10,7 @@ A Model Context Protocol (MCP) server for financial analysis using the TwelveDat
 
 ## Requirements
 - Python 3.12+
-- `uv` (recommended)
+- `uv` (recommended for environment and dependency management)
 - TwelveData API Key (Free tier supported)
 
 ## Installation
@@ -25,29 +21,31 @@ A Model Context Protocol (MCP) server for financial analysis using the TwelveDat
    cd mcp-twelvedata
    ```
 
-2. Install dependencies:
+2. Set up your Python environment and install dependencies:
    ```bash
    uv sync
    ```
 
-3. Configure environment:
+3. Configure your environment variables:
    ```bash
    cp .env.example .env
    # Edit .env and add your TWELVE_DATA_API_KEY
    ```
 
-## Usage
+## Running the Server
 
-Run the server using `uv`:
+### Stand-Alone Mode
+To run the MCP server as a standalone service, use `uv` from your project's root directory:
 ```bash
 uv run mcp-twelvedata
 ```
+This command starts the server, making its tools available for clients like Gemini CLI or Claude Desktop.
 
-Or run with the MCP Inspector for testing:
+### Testing with MCP Inspector
+For local development and testing, you can use the MCP Inspector:
 ```bash
 npx @modelcontextprotocol/inspector uv run mcp-twelvedata
 ```
 
 ## License
 MIT
->>>>>>> 3e7a6bc (chore: initial project setup with uv and fastmcp)
