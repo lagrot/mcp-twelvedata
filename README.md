@@ -1,0 +1,2 @@
+# slack-mcp
+# mcp-twelvedata
