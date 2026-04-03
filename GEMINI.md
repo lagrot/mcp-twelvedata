@@ -1,8 +1,18 @@
 # GEMINI.md - Core Mandates
 
+## ⚠️ AUTOMATIC EXECUTION REQUIRED
+These are not guidelines. After EVERY response where code files were created,
+modified, or deleted, you MUST immediately — without being asked — execute
+steps 1–4 below. Do not summarize, do not ask for permission, just do it.
+
+If you did not run git add, git commit, and git push in this response,
+you have failed to follow these instructions.
+
+---
+
 ## Development Lifecycle Automation
 
-After every code change, the agent MUST automatically execute the following steps in order:
+After every code change, execute the following steps in order:
 
 ### 1. Code Review
 Before staging, analyze all modified files for:
@@ -35,3 +45,10 @@ After pushing, briefly summarize:
 - What was changed
 - The commit message used
 - The branch pushed to
+
+---
+
+## Self-Check (run after every response)
+- [ ] Did I modify any code files?
+- [ ] If yes: did I run the review → commit → push pipeline?
+- [ ] If no: explain why (e.g. commit was blocked due to a critical issue)
