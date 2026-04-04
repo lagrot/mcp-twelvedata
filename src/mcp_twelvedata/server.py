@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from typing import Any
 
 from dotenv import load_dotenv
@@ -39,6 +40,31 @@ def get_client() -> TDClient:
     except Exception as e:
         logger.exception("Failed to initialize TwelveData client")
         raise ValueError(f"Failed to initialize TwelveData client: {e}") from e
+
+
+def verify_api_key() -> bool:
+    """Verify the API key on startup to ensure fail-fast behavior."""
+    logger.info("Verifying TwelveData API key...")
+    try:
+        td = get_client()
+        # Use a lightweight call to check validity
+        usage = td.api_usage().as_json()
+        current = usage.get("current_usage", 0)
+        limit = usage.get("plan_limit", "N/A")
+        logger.info(f"API key verified. Usage: {current}/{limit}")
+        return True
+    except InvalidApiKeyError:
+        logger.critical("CRITICAL: The provided TwelveData API key is invalid.")
+        return False
+    except TwelveDataError as e:
+        if "rate limit" in str(e).lower():
+            logger.warning("Startup check hit rate limit, but assuming key is valid.")
+            return True
+        logger.error(f"TwelveData verification error: {e}")
+        return False
+    except Exception as e:
+        logger.exception(f"Unexpected verification failure: {e}")
+        return False
 
 
 def handle_api_error(e: Exception, symbol: str | None = None) -> dict[str, Any]:
@@ -399,6 +425,12 @@ def list_cryptocurrencies() -> list[dict[str, Any]]:
 def main():
     """Entry point for the MCP server."""
     logger.info("Starting TwelveData MCP Server")
+
+    # Verify API key on startup
+    if not verify_api_key():
+        logger.critical("Startup failed: Invalid or non-functional API key.")
+        sys.exit(1)
+
     mcp.run()
 
 

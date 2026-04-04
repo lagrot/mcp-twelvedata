@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from twelvedata import TDClient
 from twelvedata.exceptions import (
+    BadRequestError,
     TwelveDataError,
 )
 
@@ -20,6 +21,7 @@ from mcp_twelvedata.server import (  # noqa: E402
     get_rsi,
     list_exchanges,
     list_technical_indicators,
+    verify_api_key,
 )
 
 
@@ -35,6 +37,26 @@ def mock_td_client(mocker):
     mocker.patch("mcp_twelvedata.server.get_client", return_value=mock_client)
 
     return mock_client
+
+
+# --- Tests for Configuration and Startup ---
+
+
+def test_verify_api_key_success(mock_td_client):
+    """Test successful API key verification."""
+    mock_usage_method = MagicMock()
+    mock_usage_method.as_json.return_value = {"current_usage": 5, "plan_limit": 800}
+    mock_td_client.api_usage.return_value = mock_usage_method
+
+    assert verify_api_key() is True
+    mock_td_client.api_usage.assert_called_once()
+
+
+def test_verify_api_key_failure(mock_td_client):
+    """Test failed API key verification."""
+    mock_td_client.api_usage.side_effect = TwelveDataError("Invalid API Key")
+
+    assert verify_api_key() is False
 
 
 # --- Tests for Market Data Tools ---
@@ -142,11 +164,10 @@ def test_list_technical_indicators(mock_td_client):
 # --- Error Handling ---
 
 
-def test_handle_api_error_rate_limit(mock_td_client):
-    """Test centralized rate limit handler."""
-    mock_td_client.price.side_effect = TwelveDataError("Rate limit exceeded")
+def test_handle_api_error_bad_request(mock_td_client):
+    """Test error handler for bad requests."""
+    mock_td_client.price.side_effect = BadRequestError("Invalid symbol")
 
-    result = get_price(symbol="AAPL")
+    result = get_price(symbol="INVALID")
 
-    assert result["code"] == 429
-    assert "Rate Limit Exceeded" in result["error"]
+    assert "Invalid request parameters" in result["error"]
