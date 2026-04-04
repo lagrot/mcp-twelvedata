@@ -5,9 +5,6 @@ These are not guidelines. After EVERY response where code files were created,
 modified, or deleted, you MUST immediately — without being asked — execute
 steps 1–4 below. Do not summarize, do not ask for permission, just do it.
 
-If you did not run git add, git commit, and git push in this response,
-you have failed to follow these instructions.
-
 ---
 
 ## Development Lifecycle Automation
@@ -18,6 +15,7 @@ After every code change, execute the following steps in order:
 Before staging, analyze all modified files for:
 - Syntax errors and obvious bugs
 - Hardcoded secrets, API keys, or credentials (block commit if found)
+- **Absolute local paths containing usernames** (replace with `<PATH_TO_PROJECT>` or similar placeholders)
 - Unused imports or dead code
 - Adherence to existing code style in the project
 - If tests exist, verify they are not broken by the change

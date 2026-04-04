@@ -39,8 +39,9 @@ A Model Context Protocol (MCP) server for deep financial analysis using the Twel
 ### 1. Gemini CLI
 To add this server to your Gemini CLI as a persistent tool:
 ```bash
-gemini mcp add twelvedata uv --project /home/count/git/mcp-twelvedata run mcp-twelvedata
+gemini mcp add twelvedata uv --project <PATH_TO_PROJECT> run mcp-twelvedata
 ```
+*(Replace `<PATH_TO_PROJECT>` with the absolute path to this directory, e.g., `/your/path/to/mcp-twelvedata`)*
 
 ### 2. Claude Desktop / Claude Code
 Add this to your `claude_desktop_config.json` (usually in `~/.config/Claude/` or `%APPDATA%/Claude/`):
@@ -52,7 +53,7 @@ Add this to your `claude_desktop_config.json` (usually in `~/.config/Claude/` or
       "command": "uv",
       "args": [
         "--project",
-        "/home/count/git/mcp-twelvedata",
+        "<PATH_TO_PROJECT>",
         "run",
         "mcp-twelvedata"
       ],
@@ -67,7 +68,7 @@ Add this to your `claude_desktop_config.json` (usually in `~/.config/Claude/` or
 ### 3. Stand-Alone Start (Any Project)
 You can start the server manually to inspect it or use it with ad-hoc tools:
 ```bash
-cd /home/count/git/mcp-twelvedata
+cd <PATH_TO_PROJECT>
 uv run mcp-twelvedata
 ```
 
