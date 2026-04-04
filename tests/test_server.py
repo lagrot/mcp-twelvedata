@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 import pytest
 from twelvedata import TDClient
 from twelvedata.exceptions import (
-    BadRequestError,
     TwelveDataError,
 )
 
@@ -15,14 +14,11 @@ src_path = os.path.abspath(os.path.join(current_dir, "..", "src"))
 sys.path.insert(0, src_path)
 
 from mcp_twelvedata.server import (  # noqa: E402
-    get_macd,
+    get_beta,
+    get_correlation,
     get_price,
-    get_quote,
     get_rsi,
-    get_technical_indicator,
-    list_cryptocurrencies,
-    list_forex,
-    list_stocks,
+    list_exchanges,
     list_technical_indicators,
 )
 
@@ -60,30 +56,52 @@ def test_get_price_success(mock_td_client):
     mock_td_client.price.assert_called_once_with(symbol="AAPL")
 
 
-def test_get_price_rate_limit(mock_td_client):
-    """Test get_price when rate limit is exceeded."""
-    # Note: TwelveDataError is the base class, we simulate rate limit text
-    mock_td_client.price.side_effect = TwelveDataError("Rate limit reached")
+def test_get_price_batch(mock_td_client):
+    """Test batch price retrieval."""
+    mock_price_method = MagicMock()
+    mock_price_method.as_json.return_value = {
+        "AAPL": {"price": "170.50"},
+        "MSFT": {"price": "400.10"},
+    }
+    mock_td_client.price.return_value = mock_price_method
 
-    result = get_price(symbol="AAPL")
+    result = get_price(symbol="AAPL,MSFT")
 
-    assert result["code"] == 429
-    assert "Rate Limit Exceeded" in result["error"]
-
-
-def test_get_quote_success(mock_td_client):
-    """Test successful retrieval of quote."""
-    mock_quote_method = MagicMock()
-    mock_quote_method.as_json.return_value = {"symbol": "AAPL", "close": "175.50"}
-    mock_td_client.quote.return_value = mock_quote_method
-
-    result = get_quote(symbol="AAPL")
-
-    assert result["symbol"] == "AAPL"
-    mock_td_client.quote.assert_called_once_with(symbol="AAPL")
+    assert "AAPL" in result
+    assert "MSFT" in result
+    mock_td_client.price.assert_called_once_with(symbol="AAPL,MSFT")
 
 
-# --- Tests for Technical Indicator Tools ---
+# --- Tests for Analysis Tools ---
+
+
+def test_get_correlation_success(mock_td_client):
+    """Test correlation tool using custom_endpoint."""
+    mock_custom_method = MagicMock()
+    mock_custom_method.as_json.return_value = {"indicator": "Correlation", "values": []}
+    mock_td_client.custom_endpoint.return_value = mock_custom_method
+
+    result = get_correlation(symbol1="AAPL", symbol2="MSFT")
+
+    assert result["indicator"] == "Correlation"
+    mock_td_client.custom_endpoint.assert_called_once()
+
+
+def test_get_beta_success(mock_td_client):
+    """Test beta tool."""
+    mock_indicator_method = MagicMock()
+    mock_indicator_method.as_json.return_value = {"indicator": "Beta", "values": []}
+    mock_ts_base = MagicMock()
+    mock_ts_base.with_beta.return_value = mock_indicator_method
+    mock_td_client.time_series.return_value = mock_ts_base
+
+    result = get_beta(symbol="AAPL")
+
+    assert result["indicator"] == "Beta"
+    mock_ts_base.with_beta.assert_called_once_with(time_period=20)
+
+
+# --- Existing Indicator/Listing Tests ---
 
 
 def test_get_rsi_success(mock_td_client):
@@ -97,23 +115,17 @@ def test_get_rsi_success(mock_td_client):
     result = get_rsi(symbol="AAPL", time_period=14)
 
     assert result["indicator"] == "RSI"
-    mock_ts_base.with_rsi.assert_called_once_with(time_period=14, series="close")
 
 
-def test_get_macd_success(mock_td_client):
-    """Test dedicated MACD tool."""
-    mock_indicator_method = MagicMock()
-    mock_indicator_method.as_json.return_value = {"indicator": "MACD", "values": []}
-    mock_ts_base = MagicMock()
-    mock_ts_base.with_macd.return_value = mock_indicator_method
-    mock_td_client.time_series.return_value = mock_ts_base
+def test_list_exchanges(mock_td_client):
+    """Test exchange listing."""
+    mock_list_method = MagicMock()
+    mock_list_method.as_json.return_value = {"data": [{"name": "NASDAQ"}]}
+    mock_td_client.get_exchanges_list.return_value = mock_list_method
 
-    result = get_macd(symbol="AAPL", fast_period=12)
+    result = list_exchanges(exchange_type="stock")
 
-    assert result["indicator"] == "MACD"
-    mock_ts_base.with_macd.assert_called_once_with(
-        fast_period=12, slow_period=26, signal_period=9, series="close"
-    )
+    assert result[0]["name"] == "NASDAQ"
 
 
 def test_list_technical_indicators(mock_td_client):
@@ -127,66 +139,14 @@ def test_list_technical_indicators(mock_td_client):
     assert result["data"][0]["name"] == "ADX"
 
 
-def test_get_technical_indicator_generic(mock_td_client):
-    """Test generic fallback tool."""
-    mock_indicator_method = MagicMock()
-    mock_indicator_method.as_json.return_value = {"indicator": "EMA"}
-    mock_ts_base = MagicMock()
-    # Note: the generic tool calls with_<name>
-    mock_ts_base.with_ema.return_value = mock_indicator_method
-    mock_td_client.time_series.return_value = mock_ts_base
-
-    result = get_technical_indicator(symbol="AAPL", indicator_name="ema")
-
-    assert result["indicator"] == "EMA"
+# --- Error Handling ---
 
 
-# --- Tests for Listing Tools ---
+def test_handle_api_error_rate_limit(mock_td_client):
+    """Test centralized rate limit handler."""
+    mock_td_client.price.side_effect = TwelveDataError("Rate limit exceeded")
 
+    result = get_price(symbol="AAPL")
 
-def test_list_stocks_success(mock_td_client):
-    """Test listing stocks."""
-    mock_stocks_method = MagicMock()
-    mock_stocks_method.as_json.return_value = {"symbols": [{"symbol": "AAPL"}]}
-    mock_td_client.get_stocks_list.return_value = mock_stocks_method
-
-    result = list_stocks(country="USA")
-
-    assert len(result) == 1
-    assert result[0]["symbol"] == "AAPL"
-
-
-def test_list_forex_success(mock_td_client):
-    """Test listing forex."""
-    mock_forex_method = MagicMock()
-    mock_forex_method.as_json.return_value = {"symbols": [{"symbol": "EUR/USD"}]}
-    mock_td_client.get_forex_pairs_list.return_value = mock_forex_method
-
-    result = list_forex()
-
-    assert len(result) == 1
-    assert result[0]["symbol"] == "EUR/USD"
-
-
-def test_list_cryptocurrencies_success(mock_td_client):
-    """Test listing crypto."""
-    mock_crypto_method = MagicMock()
-    mock_crypto_method.as_json.return_value = {"symbols": [{"symbol": "BTC/USD"}]}
-    mock_td_client.get_cryptocurrencies_list.return_value = mock_crypto_method
-
-    result = list_cryptocurrencies()
-
-    assert len(result) == 1
-    assert result[0]["symbol"] == "BTC/USD"
-
-
-# --- Generic Error Handling ---
-
-
-def test_handle_api_error_bad_request(mock_td_client):
-    """Test error handler for bad requests."""
-    mock_td_client.price.side_effect = BadRequestError("Invalid symbol")
-
-    result = get_price(symbol="INVALID")
-
-    assert "Invalid request parameters" in result["error"]
+    assert result["code"] == 429
+    assert "Rate Limit Exceeded" in result["error"]

@@ -35,7 +35,6 @@ def get_client() -> TDClient:
         raise ValueError("TWELVE_DATA_API_KEY environment variable is not set")
     try:
         td = TDClient(apikey=api_key)
-        # We don't ping api_usage on every call to save credits (8 credits/min limit)
         return td
     except Exception as e:
         logger.exception("Failed to initialize TwelveData client")
@@ -71,10 +70,10 @@ def handle_api_error(e: Exception, symbol: str | None = None) -> dict[str, Any]:
 @mcp.tool()
 def get_price(symbol: str) -> dict[str, Any]:
     """
-    Get the real-time price of a financial instrument.
+    Get the real-time price of one or more financial instruments.
 
     Args:
-        symbol: The ticker symbol (e.g., "AAPL", "BTC/USD", "EUR/USD").
+        symbol: Single ticker or comma-separated list.
     """
     try:
         logger.info(f"Fetching price for {symbol}")
@@ -91,7 +90,7 @@ def get_quote(symbol: str) -> dict[str, Any]:
     Get detailed quote information for a financial instrument.
 
     Args:
-        symbol: The ticker symbol (e.g., "AAPL", "BTC/USD", "EUR/USD").
+        symbol: The ticker symbol (e.g., "AAPL").
     """
     try:
         logger.info(f"Fetching quote for {symbol}")
@@ -134,6 +133,72 @@ def get_time_series(
             start_date=start_date,
             end_date=end_date,
         ).as_json()
+        return result
+    except Exception as e:
+        return handle_api_error(e, symbol)
+
+
+@mcp.tool()
+def get_correlation(
+    symbol1: str,
+    symbol2: str,
+    interval: str = "1day",
+    time_period: int = 20,
+    outputsize: int = 10,
+) -> dict[str, Any]:
+    """
+    Calculate the statistical correlation between two financial instruments.
+    A value close to 1 implies positive correlation, -1 negative, and 0 no correlation.
+
+    Args:
+        symbol1: The first ticker symbol (e.g., "AAPL").
+        symbol2: The second ticker symbol to compare against (e.g., "MSFT", "QQQ").
+        interval: Data interval (e.g., "1day", "1h").
+        time_period: Number of periods for correlation calculation. Defaults to 20.
+        outputsize: Number of data points to return.
+    """
+    try:
+        logger.info(f"Calculating correlation between {symbol1} and {symbol2}")
+        td = get_client()
+        # Correlation is a technical indicator that requires symbol and symbol2
+        result = td.custom_endpoint(
+            "correlation",
+            symbol=symbol1,
+            symbol2=symbol2,
+            interval=interval,
+            time_period=time_period,
+            outputsize=outputsize,
+        ).as_json()
+        return result
+    except Exception as e:
+        return handle_api_error(e, f"{symbol1}/{symbol2}")
+
+
+@mcp.tool()
+def get_beta(
+    symbol: str,
+    interval: str = "1day",
+    time_period: int = 20,
+    outputsize: int = 10,
+) -> dict[str, Any]:
+    """
+    Calculate the Beta of an instrument (usually vs the S&P 500).
+    Beta measures volatility relative to the market.
+
+    Args:
+        symbol: The ticker symbol (e.g., "AAPL").
+        interval: Data interval (e.g., "1day").
+        time_period: Number of periods. Defaults to 20.
+        outputsize: Number of data points to return.
+    """
+    try:
+        logger.info(f"Calculating Beta for {symbol}")
+        td = get_client()
+        result = (
+            td.time_series(symbol=symbol, interval=interval, outputsize=outputsize)
+            .with_beta(time_period=time_period)
+            .as_json()
+        )
         return result
     except Exception as e:
         return handle_api_error(e, symbol)
@@ -261,6 +326,7 @@ def get_technical_indicator(
                     "Try dedicated tools or check the name."
                 )
             }
+
         indicator_method = getattr(ts_data, method_name)
         result = indicator_method(**params).as_json()
         return result
@@ -281,6 +347,24 @@ def list_stocks(country: str = "USA") -> list[dict[str, Any]]:
         td = get_client()
         result = td.get_stocks_list(country=country).as_json()
         return result.get("symbols", result.get("data", []))
+    except Exception as e:
+        err = handle_api_error(e)
+        return [err] if isinstance(err, dict) else [{"error": str(e)}]
+
+
+@mcp.tool()
+def list_exchanges(exchange_type: str = "stock") -> list[dict[str, Any]]:
+    """
+    List all supported exchanges.
+
+    Args:
+        exchange_type: Exchange type ("stock", "forex", "cryptocurrency").
+    """
+    try:
+        logger.info(f"Listing exchanges for type: {exchange_type}")
+        td = get_client()
+        result = td.get_exchanges_list(type=exchange_type).as_json()
+        return result.get("data", [])
     except Exception as e:
         err = handle_api_error(e)
         return [err] if isinstance(err, dict) else [{"error": str(e)}]
