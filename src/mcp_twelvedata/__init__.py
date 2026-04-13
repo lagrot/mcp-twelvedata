@@ -1,2 +1,1 @@
-def hello() -> str:
-    return "Hello from mcp-twelvedata!"
+# Empty __init__.py for the package

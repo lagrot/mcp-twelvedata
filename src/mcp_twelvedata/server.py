@@ -25,17 +25,15 @@ logger = logging.getLogger("mcp-twelvedata")
 # Initialize FastMCP server
 mcp = FastMCP("TwelveData")
 
-# Initialize TwelveData client
-api_key = os.getenv("TWELVE_DATA_API_KEY")
-
 
 def get_client() -> TDClient:
     """Helper to initialize the TwelveData client."""
-    if not api_key:
+    key = os.getenv("TWELVE_DATA_API_KEY")
+    if not key:
         logger.error("TWELVE_DATA_API_KEY not found in environment")
         raise ValueError("TWELVE_DATA_API_KEY environment variable is not set")
     try:
-        td = TDClient(apikey=api_key)
+        td = TDClient(apikey=key)
         return td
     except Exception as e:
         logger.exception("Failed to initialize TwelveData client")
